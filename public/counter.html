@@ -66,12 +66,21 @@
       box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
       transform: translateY(-2px);
     }
-    .btn-add {
-      background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    .btn-delete {
+      background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+      box-shadow: 0 4px 14px 0 rgba(100, 116, 139, 0.4);
+    }
+    .btn-delete:hover {
+      background: linear-gradient(135deg, #475569 0%, #334155 100%);
+      box-shadow: 0 6px 20px rgba(100, 116, 139, 0.6);
+      transform: translateY(-2px);
+    }
+    .btn-edit {
+      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
       box-shadow: 0 4px 14px 0 rgba(139, 92, 246, 0.4);
     }
-    .btn-add:hover {
-      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    .btn-edit:hover {
+      background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
       box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
       transform: translateY(-2px);
     }
@@ -163,16 +172,29 @@
       align-items: center;
       justify-content: center;
     }
-    .modal.show {
+    .modal.active {
       display: flex;
     }
     .modal-content {
       background: white;
       padding: 2rem;
       border-radius: 1rem;
-      max-width: 400px;
+      max-width: 500px;
       width: 90%;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    .input-field {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: #8b5cf6;
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
     }
   </style>
 </head>
@@ -229,21 +251,46 @@
   <!-- Add Counter Modal -->
   <div id="addCounterModal" class="modal">
     <div class="modal-content">
-      <h2 class="text-2xl font-bold mb-4 text-gray-800">Add New Counter</h2>
+      <h2 class="text-2xl font-bold mb-4 text-gray-800">➕ Add New Counter</h2>
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-2">Counter Name</label>
-          <input type="text" id="counterName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="e.g., Ice Cream Counter">
+          <input type="text" id="addCounterName" class="input-field" placeholder="e.g., Counter Ice Cream" maxlength="50">
         </div>
         <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-2">Prefix (max 3 uppercase letters)</label>
-          <input type="text" id="counterPrefix" maxlength="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="e.g., ICE" style="text-transform: uppercase;">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Prefix (1-7 uppercase letters)</label>
+          <input type="text" id="addCounterPrefix" class="input-field" placeholder="e.g., ICE" maxlength="7" style="text-transform: uppercase;">
         </div>
         <div class="flex gap-3 mt-6">
-          <button onclick="addCounter()" class="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all">
-            Add Counter
+          <button onclick="addCounter()" class="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all">
+            Create Counter
           </button>
-          <button onclick="closeAddCounterModal()" class="flex-1 bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg hover:bg-gray-300 transition-all">
+          <button onclick="closeAddCounterModal()" class="flex-1 py-3 bg-gray-200 hover:bg-gray-300 rounded-xl font-semibold transition-all">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Counter Modal -->
+  <div id="editCounterModal" class="modal">
+    <div class="modal-content">
+      <h2 class="text-2xl font-bold mb-4 text-gray-800">✏️ Edit Counter</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Counter Name</label>
+          <input type="text" id="editCounterName" class="input-field" placeholder="e.g., Counter Ice Cream" maxlength="50">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Prefix (1-7 uppercase letters)</label>
+          <input type="text" id="editCounterPrefix" class="input-field" placeholder="e.g., ICE" maxlength="7" style="text-transform: uppercase;">
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button onclick="saveEditCounter()" class="flex-1 py-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-indigo-600 transition-all">
+            Save Changes
+          </button>
+          <button onclick="closeEditCounterModal()" class="flex-1 py-3 bg-gray-200 hover:bg-gray-300 rounded-xl font-semibold transition-all">
             Cancel
           </button>
         </div>
@@ -269,6 +316,7 @@
     const database = getDatabase(app);
 
     let countersData = {};
+    let editingCounterId = null;
 
     function showToast(message, type = 'info') {
       const toast = document.getElementById('toast');
@@ -294,7 +342,7 @@
       return `${prefix}${String(num).padStart(3, '0')}`;
     }
 
-    async function triggerNotification(counterId, queueId) {
+    async function triggerNotification(counterId, queueId, counterName) {
       try {
         const queueRef = ref(database, 'queue');
         const snapshot = await get(queueRef);
@@ -302,6 +350,8 @@
         if (!snapshot.exists()) return;
 
         const updates = {};
+        let notificationSent = false;
+
         snapshot.forEach(snap => {
           const q = snap.val();
           const key = snap.key;
@@ -313,29 +363,23 @@
             updates[`queue/${key}/serverNotifyRequested`] = true;
             updates[`queue/${key}/serverNotifyRequestedAt`] = serverTimestamp();
             updates[`queue/${key}/notifiedAt`] = serverTimestamp();
+            notificationSent = true;
+
+            // Send Telegram notification directly
+            fetch('/.netlify/functions/sendTelegram', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chatId: q.chatId,
+                message: `👋 Hey!\n🧾 Number • ${queueId}\n🪑 Counter • ${counterName}\n\nIt's your turn! Please proceed to the counter. ☕️😌`
+              })
+            }).catch(err => console.error('Telegram send error:', err));
           }
         });
 
         if (Object.keys(updates).length > 0) {
           await update(ref(database), updates);
-          
-          // Call Telegram webhook
-          const counter = countersData[counterId];
-          const response = await fetch('/.netlify/functions/telegramWebhook', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: {
-                text: `/notify ${queueId}`,
-                chat: { id: 'system' }
-              },
-              counterId: counterId,
-              counterName: counter?.name || counterId,
-              queueId: queueId
-            })
-          });
-
-          if (response.ok) {
+          if (notificationSent) {
             showToast('📱 Notification sent to customer', 'success');
           }
         }
@@ -392,10 +436,20 @@
           </button>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-3 gap-4">
+          <button onclick="openEditCounterModal('${counterId}')" 
+                  class="action-btn btn-edit text-white font-bold py-4 rounded-xl text-base flex items-center justify-center gap-2">
+            <span class="text-xl">✏️</span> Edit
+          </button>
+          
           <button onclick="handleAction('${counterId}', 'reset')" 
-                  class="action-btn btn-reset text-white font-bold py-4 rounded-xl text-lg flex items-center justify-center gap-2">
-            <span class="text-2xl">🔄</span> Reset
+                  class="action-btn btn-reset text-white font-bold py-4 rounded-xl text-base flex items-center justify-center gap-2">
+            <span class="text-xl">🔄</span> Reset
+          </button>
+          
+          <button onclick="handleAction('${counterId}', 'delete')" 
+                  class="action-btn btn-delete text-white font-bold py-4 rounded-xl text-base flex items-center justify-center gap-2">
+            <span class="text-xl">🗑️</span> Delete
           </button>
         </div>
 
@@ -422,35 +476,46 @@
         const updates = {};
 
         if (action === 'call') {
-          // Call Next: Increment nowServing by exactly 1
-          const newServing = counter.nowServing + 1;
-          updates[`counters/${counterId}/nowServing`] = newServing;
+          // Call next: increment lastIssued and set nowServing to that number
+          // Starting from -1 ensures first ticket is 000
+          const newNumber = (counter.lastIssued === undefined || counter.lastIssued < 0) ? 0 : counter.lastIssued + 1;
+          updates[`counters/${counterId}/lastIssued`] = newNumber;
+          updates[`counters/${counterId}/nowServing`] = newNumber;
           updates[`counters/${counterId}/lastAdvanceAt`] = serverTimestamp();
           updates[`counters/${counterId}/busy`] = false;
 
           await update(ref(database), updates);
-          await triggerNotification(counterId, formatQueueId(counter.prefix, newServing));
-          showToast(`📢 Called ${formatQueueId(counter.prefix, newServing)}`, 'success');
+          const queueId = formatQueueId(counter.prefix, newNumber);
+          await triggerNotification(counterId, queueId, counter.name);
+          showToast(`📢 Called ${queueId}`, 'success');
 
         } else if (action === 'skip') {
-          // Skip: Increment nowServing by 1
+          // Skip: increment nowServing by exactly 1
           const newServing = counter.nowServing + 1;
           updates[`counters/${counterId}/nowServing`] = newServing;
           updates[`counters/${counterId}/lastAdvanceAt`] = serverTimestamp();
           updates[`counters/${counterId}/busy`] = false;
 
           await update(ref(database), updates);
-          showToast(`⏭️ Skipped to ${formatQueueId(counter.prefix, newServing)}`, 'info');
+          const queueId = formatQueueId(counter.prefix, newServing);
+          await triggerNotification(counterId, queueId, counter.name);
+          showToast(`⏭️ Skipped to ${queueId}`, 'info');
 
         } else if (action === 'reset') {
-          if (confirm(`🔄 Reset ${counter.name}?\n\nThis will set:\n• Now Serving: ${counter.prefix}001\n• Last Issued: 0\n\nNext ticket will be ${counter.prefix}000`)) {
+          if (confirm(`🔄 Reset ${counter.name} to starting position?\n\nThis will set:\n• Now Serving: ${counter.prefix}001\n• Last Issued: -1 (next ticket will be ${counter.prefix}000)`)) {
             updates[`counters/${counterId}/nowServing`] = 1;
-            updates[`counters/${counterId}/lastIssued`] = 0;
+            updates[`counters/${counterId}/lastIssued`] = -1;
             updates[`counters/${counterId}/lastAdvanceAt`] = serverTimestamp();
             updates[`counters/${counterId}/busy`] = false;
 
             await update(ref(database), updates);
             showToast(`🔄 ${counter.name} reset successfully`, 'success');
+          }
+
+        } else if (action === 'delete') {
+          if (confirm(`🗑️ Delete ${counter.name}?\n\nThis action cannot be undone!`)) {
+            await remove(ref(database, `counters/${counterId}`));
+            showToast(`🗑️ ${counter.name} deleted`, 'success');
           }
         }
 
@@ -504,7 +569,8 @@
               servingEl.textContent = formatQueueId(counter.prefix, counter.nowServing);
             }
             if (issuedEl) {
-              issuedEl.textContent = formatQueueId(counter.prefix, counter.lastIssued || 0);
+              const lastIssued = counter.lastIssued === undefined || counter.lastIssued < 0 ? 0 : counter.lastIssued;
+              issuedEl.textContent = formatQueueId(counter.prefix, lastIssued);
             }
           });
         } else {
@@ -523,27 +589,32 @@
 
     window.refreshData = refreshData;
 
-    window.openAddCounterModal = () => {
-      document.getElementById('addCounterModal').classList.add('show');
-      document.getElementById('counterName').value = '';
-      document.getElementById('counterPrefix').value = '';
+    window.openAddCounterModal = function() {
+      document.getElementById('addCounterName').value = '';
+      document.getElementById('addCounterPrefix').value = '';
+      document.getElementById('addCounterModal').classList.add('active');
     };
 
-    window.closeAddCounterModal = () => {
-      document.getElementById('addCounterModal').classList.remove('show');
+    window.closeAddCounterModal = function() {
+      document.getElementById('addCounterModal').classList.remove('active');
     };
 
-    window.addCounter = async () => {
-      const name = document.getElementById('counterName').value.trim();
-      const prefix = document.getElementById('counterPrefix').value.trim().toUpperCase();
+    window.addCounter = async function() {
+      const name = document.getElementById('addCounterName').value.trim();
+      const prefix = document.getElementById('addCounterPrefix').value.trim().toUpperCase();
 
-      if (!name || !prefix) {
-        showToast('❌ Please fill in all fields', 'error');
+      if (!name) {
+        showToast('❌ Please enter a counter name', 'error');
         return;
       }
 
-      if (!/^[A-Z]{1,3}$/.test(prefix)) {
-        showToast('❌ Prefix must be 1-3 uppercase letters only', 'error');
+      if (!prefix) {
+        showToast('❌ Please enter a prefix', 'error');
+        return;
+      }
+
+      if (!/^[A-Z]{1,7}$/.test(prefix)) {
+        showToast('❌ Prefix must be 1-7 uppercase letters (A-Z)', 'error');
         return;
       }
 
@@ -552,10 +623,10 @@
         const newCounterRef = push(countersRef);
         
         const newCounter = {
-          name,
-          prefix,
+          name: name,
+          prefix: prefix,
           nowServing: 1,
-          lastIssued: 0,
+          lastIssued: -1, // First ticket will be 000
           active: true,
           busy: false,
         };
@@ -569,10 +640,55 @@
       }
     };
 
-    // Auto-uppercase prefix input
-    document.getElementById('counterPrefix')?.addEventListener('input', (e) => {
-      e.target.value = e.target.value.toUpperCase();
-    });
+    window.openEditCounterModal = function(counterId) {
+      const counter = countersData[counterId];
+      if (!counter) return;
+
+      editingCounterId = counterId;
+      document.getElementById('editCounterName').value = counter.name || '';
+      document.getElementById('editCounterPrefix').value = counter.prefix || '';
+      document.getElementById('editCounterModal').classList.add('active');
+    };
+
+    window.closeEditCounterModal = function() {
+      document.getElementById('editCounterModal').classList.remove('active');
+      editingCounterId = null;
+    };
+
+    window.saveEditCounter = async function() {
+      if (!editingCounterId) return;
+
+      const name = document.getElementById('editCounterName').value.trim();
+      const prefix = document.getElementById('editCounterPrefix').value.trim().toUpperCase();
+
+      if (!name) {
+        showToast('❌ Please enter a counter name', 'error');
+        return;
+      }
+
+      if (!prefix) {
+        showToast('❌ Please enter a prefix', 'error');
+        return;
+      }
+
+      if (!/^[A-Z]{1,7}$/.test(prefix)) {
+        showToast('❌ Prefix must be 1-7 uppercase letters (A-Z)', 'error');
+        return;
+      }
+
+      try {
+        const updates = {};
+        updates[`counters/${editingCounterId}/name`] = name;
+        updates[`counters/${editingCounterId}/prefix`] = prefix;
+
+        await update(ref(database), updates);
+        showToast(`✅ Counter updated successfully`, 'success');
+        closeEditCounterModal();
+      } catch (error) {
+        console.error('Error updating counter:', error);
+        showToast('❌ Failed to update counter', 'error');
+      }
+    };
 
     startRealtimeListeners();
   </script>
