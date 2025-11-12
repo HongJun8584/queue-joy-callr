@@ -569,7 +569,8 @@
               servingEl.textContent = formatQueueId(counter.prefix, counter.nowServing);
             }
             if (issuedEl) {
-              issuedEl.textContent = formatQueueId(counter.prefix, counter.lastIssued || 0);
+              const lastIssued = counter.lastIssued === undefined || counter.lastIssued < 0 ? 0 : counter.lastIssued;
+              issuedEl.textContent = formatQueueId(counter.prefix, lastIssued);
             }
           });
         } else {
@@ -588,27 +589,32 @@
 
     window.refreshData = refreshData;
 
-    window.openAddCounterModal = () => {
-      document.getElementById('addCounterModal').classList.add('show');
-      document.getElementById('counterName').value = '';
-      document.getElementById('counterPrefix').value = '';
+    window.openAddCounterModal = function() {
+      document.getElementById('addCounterName').value = '';
+      document.getElementById('addCounterPrefix').value = '';
+      document.getElementById('addCounterModal').classList.add('active');
     };
 
-    window.closeAddCounterModal = () => {
-      document.getElementById('addCounterModal').classList.remove('show');
+    window.closeAddCounterModal = function() {
+      document.getElementById('addCounterModal').classList.remove('active');
     };
 
-    window.addCounter = async () => {
-      const name = document.getElementById('counterName').value.trim();
-      const prefix = document.getElementById('counterPrefix').value.trim().toUpperCase();
+    window.addCounter = async function() {
+      const name = document.getElementById('addCounterName').value.trim();
+      const prefix = document.getElementById('addCounterPrefix').value.trim().toUpperCase();
 
-      if (!name || !prefix) {
-        showToast('❌ Please fill in all fields', 'error');
+      if (!name) {
+        showToast('❌ Please enter a counter name', 'error');
         return;
       }
 
-      if (!/^[A-Z]{1,3}$/.test(prefix)) {
-        showToast('❌ Prefix must be 1-3 uppercase letters only', 'error');
+      if (!prefix) {
+        showToast('❌ Please enter a prefix', 'error');
+        return;
+      }
+
+      if (!/^[A-Z]{1,7}$/.test(prefix)) {
+        showToast('❌ Prefix must be 1-7 uppercase letters (A-Z)', 'error');
         return;
       }
 
@@ -617,10 +623,10 @@
         const newCounterRef = push(countersRef);
         
         const newCounter = {
-          name,
-          prefix,
+          name: name,
+          prefix: prefix,
           nowServing: 1,
-          lastIssued: 0,
+          lastIssued: -1, // First ticket will be 000
           active: true,
           busy: false,
         };
@@ -634,10 +640,55 @@
       }
     };
 
-    // Auto-uppercase prefix input
-    document.getElementById('counterPrefix')?.addEventListener('input', (e) => {
-      e.target.value = e.target.value.toUpperCase();
-    });
+    window.openEditCounterModal = function(counterId) {
+      const counter = countersData[counterId];
+      if (!counter) return;
+
+      editingCounterId = counterId;
+      document.getElementById('editCounterName').value = counter.name || '';
+      document.getElementById('editCounterPrefix').value = counter.prefix || '';
+      document.getElementById('editCounterModal').classList.add('active');
+    };
+
+    window.closeEditCounterModal = function() {
+      document.getElementById('editCounterModal').classList.remove('active');
+      editingCounterId = null;
+    };
+
+    window.saveEditCounter = async function() {
+      if (!editingCounterId) return;
+
+      const name = document.getElementById('editCounterName').value.trim();
+      const prefix = document.getElementById('editCounterPrefix').value.trim().toUpperCase();
+
+      if (!name) {
+        showToast('❌ Please enter a counter name', 'error');
+        return;
+      }
+
+      if (!prefix) {
+        showToast('❌ Please enter a prefix', 'error');
+        return;
+      }
+
+      if (!/^[A-Z]{1,7}$/.test(prefix)) {
+        showToast('❌ Prefix must be 1-7 uppercase letters (A-Z)', 'error');
+        return;
+      }
+
+      try {
+        const updates = {};
+        updates[`counters/${editingCounterId}/name`] = name;
+        updates[`counters/${editingCounterId}/prefix`] = prefix;
+
+        await update(ref(database), updates);
+        showToast(`✅ Counter updated successfully`, 'success');
+        closeEditCounterModal();
+      } catch (error) {
+        console.error('Error updating counter:', error);
+        showToast('❌ Failed to update counter', 'error');
+      }
+    };
 
     startRealtimeListeners();
   </script>
